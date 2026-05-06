@@ -38,7 +38,7 @@ const selectStyle: React.CSSProperties = {
   paddingRight: 32,
 };
 
-type FormState = Omit<Task, "id" | "createdAt"> & { id?: number; createdAt?: string };
+type FormState = Omit<Task, "id" | "createdAt">;
 
 export function TaskModal({
   task,
@@ -47,22 +47,32 @@ export function TaskModal({
   tweaks,
 }: {
   task: Task | null;
-  onSave: (task: Task) => void;
+  onSave: (payload: FormState) => void;
   onClose: () => void;
   tweaks: Tweaks;
 }) {
   const statuses = useContext(StatusContext);
   const isEdit = !!task?.id;
   const [form, setForm] = useState<FormState>(
-    task || {
-      title: "",
-      category: "Хувцас",
-      status: "pending",
-      priority: "medium",
-      assignee: "",
-      dueTime: "",
-      notes: "",
-    }
+    task
+      ? {
+          title: task.title,
+          category: task.category,
+          status: task.status,
+          priority: task.priority,
+          assignee: task.assignee,
+          dueTime: task.dueTime,
+          notes: task.notes,
+        }
+      : {
+          title: "",
+          category: "Хувцас",
+          status: "pending",
+          priority: "medium",
+          assignee: "",
+          dueTime: "",
+          notes: "",
+        }
   );
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -75,11 +85,7 @@ export function TaskModal({
 
   const handleSave = () => {
     if (!form.title.trim()) return;
-    onSave({
-      ...(form as Task),
-      id: task?.id || Date.now(),
-      createdAt: task?.createdAt || new Date().toISOString(),
-    });
+    onSave(form);
   };
 
   return (

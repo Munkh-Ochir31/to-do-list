@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Хөнжүүлэх систем — Даалгаврын модуль
 
-## Getting Started
+Next.js + Supabase дээр хийсэн laundry task management module.
 
-First, run the development server:
+## Setup
+
+### 1. Supabase холболт
+
+`.env.local.example`-г хуулж `.env.local` болгоод Supabase project-ийн утгыг бөглөнө:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.local.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env.local` дотор:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Supabase Dashboard → Project Settings → API хэсгээс эдгээр утгыг авна.
 
-## Learn More
+### 2. Хүснэгт үүсгэх
 
-To learn more about Next.js, take a look at the following resources:
+Supabase Dashboard → SQL Editor → New query руу очоод `supabase/schema.sql` файлын агуулгыг бүхэлд нь copy/paste хийж run хийнэ. Энэ нь:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `tasks` болон `statuses` хүснэгтийг үүсгэнэ
+- 5 анхдагч статусыг seed хийнэ
+- Public нээлттэй RLS бодлогыг тохируулна
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Локал-аар ажиллуулах
 
-## Deploy on Vercel
+```bash
+npm install
+npm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`http://localhost:3000` дээр нээнэ.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Боломжууд
+
+- ➕ Даалгавар нэмэх / засах / устгах
+- ✅ Статус солих (dropdown эсвэл checkbox)
+- 🎨 Өөрийн статус нэмэх (Статус удирдах модалаар)
+- 🔍 Хайх / шүүх / эрэмбэлэх
+- 📊 Явцын статистик
+- 🎞️ Анимация: pulse dot, slide-in, check pop
+
+## Архитектур
+
+- `app/page.tsx` — гол хуудас
+- `app/components/` — UI компонентууд
+- `app/lib/supabase.ts` — Supabase client
+- `app/lib/data.ts` — өгөгдлийн query функцууд
+- `app/types.ts` — TypeScript types
+- `app/constants.ts` — анхдагч утгууд (статус, ангилал, т.г.)
+- `supabase/schema.sql` — DB schema

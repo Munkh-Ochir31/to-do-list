@@ -6,7 +6,16 @@ import { StatsBar } from "./components/StatsBar";
 import { StatusManagerModal } from "./components/StatusManagerModal";
 import { TaskModal } from "./components/TaskModal";
 import { TaskRow } from "./components/TaskRow";
-import { CATEGORIES, DEFAULT_STATUSES, SAMPLE_TASKS, TWEAKS } from "./constants";
+import { CATEGORIES, DEFAULT_STATUSES, TWEAKS } from "./constants";
+import {
+  deleteTask,
+  fetchStatuses,
+  fetchTasks,
+  insertTask,
+  replaceStatuses,
+  updateTask,
+  updateTaskStatus,
+} from "./lib/data";
 import { StatusContext } from "./StatusContext";
 import type { Status, Task } from "./types";
 
@@ -27,12 +36,15 @@ const selectStyle: React.CSSProperties = {
 };
 
 type ModalState = null | "add" | Task;
+type LoadState = "loading" | "ready" | "error";
 
 export default function Page() {
   const tweaks = TWEAKS;
 
   const [statuses, setStatuses] = useState<Status[]>(DEFAULT_STATUSES);
-  const [tasks, setTasks] = useState<Task[]>(SAMPLE_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [load, setLoad] = useState<LoadState>("loading");
+  const [error, setError] = useState<string | null>(null);
   const [newTaskId, setNewTaskId] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
   const [showStatusManager, setShowStatusManager] = useState(false);
@@ -42,37 +54,75 @@ export default function Page() {
   const [sortBy, setSortBy] = useState<"createdAt" | "priority" | "dueTime">("createdAt");
 
   useEffect(() => {
-    try {
-      const savedTasks = localStorage.getItem("laundry_tasks");
-      if (savedTasks) setTasks(JSON.parse(savedTasks));
-      const savedStatuses = localStorage.getItem("laundry_statuses");
-      if (savedStatuses) setStatuses(JSON.parse(savedStatuses));
-    } catch {}
+    let cancelled = false;
+    (async () => {
+      try {
+        const [t, s] = await Promise.all([fetchTasks(), fetchStatuses()]);
+        if (cancelled) return;
+        setTasks(t);
+        if (s.length) setStatuses(s);
+        setLoad("ready");
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : String(e));
+        setLoad("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("laundry_tasks", JSON.stringify(tasks));
-  }, [tasks]);
-
-  useEffect(() => {
-    localStorage.setItem("laundry_statuses", JSON.stringify(statuses));
-  }, [statuses]);
-
-  const handleSave = (task: Task) => {
-    const isNew = !tasks.find((t) => t.id === task.id);
-    setTasks((ts) =>
-      ts.find((t) => t.id === task.id) ? ts.map((t) => (t.id === task.id ? task : t)) : [...ts, task]
-    );
-    if (isNew) {
-      setNewTaskId(task.id);
-      setTimeout(() => setNewTaskId(null), 600);
+  const handleSave = async (payload: Omit<Task, "id" | "createdAt">) => {
+    try {
+      if (modal && modal !== "add") {
+        const updated = await updateTask(modal.id, payload);
+        setTasks((ts) => ts.map((t) => (t.id === updated.id ? updated : t)));
+      } else {
+        const created = await insertTask(payload);
+        setTasks((ts) => [created, ...ts]);
+        setNewTaskId(created.id);
+        setTimeout(() => setNewTaskId(null), 600);
+      }
+      setModal(null);
+    } catch (e) {
+      alert("Хадгалахад алдаа гарлаа: " + (e instanceof Error ? e.message : String(e)));
     }
-    setModal(null);
   };
 
-  const handleDelete = (id: number) => setTasks((ts) => ts.filter((t) => t.id !== id));
-  const handleStatusChange = (id: number, status: string) =>
+  const handleDelete = async (id: number) => {
+    const prev = tasks;
+    setTasks((ts) => ts.filter((t) => t.id !== id));
+    try {
+      await deleteTask(id);
+    } catch (e) {
+      setTasks(prev);
+      alert("Устгах алдаа: " + (e instanceof Error ? e.message : String(e)));
+    }
+  };
+
+  const handleStatusChange = async (id: number, status: string) => {
+    const prev = tasks;
     setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, status } : t)));
+    try {
+      await updateTaskStatus(id, status);
+    } catch (e) {
+      setTasks(prev);
+      alert("Статус солих алдаа: " + (e instanceof Error ? e.message : String(e)));
+    }
+  };
+
+  const handleStatusesSave = async (list: Status[]) => {
+    const prev = statuses;
+    setStatuses(list);
+    try {
+      const saved = await replaceStatuses(list);
+      setStatuses(saved);
+    } catch (e) {
+      setStatuses(prev);
+      alert("Статус хадгалахад алдаа: " + (e instanceof Error ? e.message : String(e)));
+    }
+  };
 
   const filtered = tasks
     .filter((t) => filterStatus === "all" || t.status === filterStatus)
@@ -276,7 +326,7 @@ export default function Page() {
               color: "#a3a3a3",
             }}
           >
-            {filtered.length} даалгавар
+            {load === "loading" ? "Уншиж байна..." : `${filtered.length} даалгавар`}
           </span>
           {filtered.filter((t) => !doneStatusIds.has(t.status)).length > 0 && (
             <span style={{ fontSize: 12, color: "#a3a3a3" }}>
@@ -286,7 +336,35 @@ export default function Page() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {filtered.length === 0 ? (
+          {load === "error" ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "32px 24px",
+                background: "#fff",
+                borderRadius: tweaks.cardRadius,
+                border: "1px solid #fecaca",
+                color: "#b91c1c",
+                fontSize: 13,
+              }}
+            >
+              Алдаа гарлаа: {error}
+            </div>
+          ) : load === "loading" ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "32px 24px",
+                background: "#fff",
+                borderRadius: tweaks.cardRadius,
+                border: "1px solid #f0f0f0",
+                color: "#a3a3a3",
+                fontSize: 13,
+              }}
+            >
+              Өгөгдөл уншиж байна...
+            </div>
+          ) : filtered.length === 0 ? (
             <div
               style={{
                 textAlign: "center",
@@ -337,7 +415,7 @@ export default function Page() {
           )}
         </div>
 
-        {!compact && (
+        {!compact && load === "ready" && (
           <div style={{ marginTop: 16 }}>
             <button
               onClick={() => setModal("add")}
@@ -385,7 +463,7 @@ export default function Page() {
       {showStatusManager && (
         <StatusManagerModal
           statuses={statuses}
-          onSave={(list) => setStatuses(list)}
+          onSave={handleStatusesSave}
           onClose={() => setShowStatusManager(false)}
         />
       )}
