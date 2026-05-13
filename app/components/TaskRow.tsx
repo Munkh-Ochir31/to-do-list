@@ -25,7 +25,12 @@ export function TaskRow({
 }) {
   const [hovered, setHovered] = useState(false);
   const [justDone, setJustDone] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const isDone = task.status === "done";
+
+  const handleDelete = () => setConfirmDelete(true);
+  const confirmDeleteAction = () => { setConfirmDelete(false); onDelete(task.id); };
+  const cancelDelete = () => setConfirmDelete(false);
 
   const handleDoneToggle = () => {
     if (!isDone) setJustDone(true);
@@ -34,6 +39,7 @@ export function TaskRow({
   };
 
   return (
+    <>
     <div
       className={isNew ? "task-row-enter" : ""}
       onMouseEnter={() => setHovered(true)}
@@ -166,7 +172,7 @@ export function TaskRow({
           <Icon name="edit" size={13} />
         </button>
         <button
-          onClick={() => onDelete(task.id)}
+          onClick={handleDelete}
           style={{
             border: "none",
             background: "#f5f5f5",
@@ -205,5 +211,75 @@ export function TaskRow({
         {isDone && <Icon name="check" size={11} style={{ color: "#fff" }} />}
       </div>
     </div>
+
+    {confirmDelete && (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.35)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 200,
+          padding: 16,
+        }}
+        onClick={cancelDelete}
+      >
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 12,
+            padding: 24,
+            width: "100%",
+            maxWidth: 340,
+            boxShadow: "0 16px 48px rgba(0,0,0,0.15)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#0a0a0a", marginBottom: 6 }}>
+            Устгахыг баталгаажуулна уу
+          </div>
+          <div style={{ fontSize: 13, color: "#737373", marginBottom: 20, lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 500, color: "#0a0a0a" }}>&ldquo;{task.title}&rdquo;</span> даалгаврыг устгах уу? Энэ үйлдлийг буцаах боломжгүй.
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button
+              onClick={cancelDelete}
+              style={{
+                padding: "8px 16px",
+                border: "1px solid #e5e5e5",
+                borderRadius: 8,
+                background: "#fff",
+                color: "#525252",
+                fontFamily: "var(--font-dm-sans), sans-serif",
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Цуцлах
+            </button>
+            <button
+              onClick={confirmDeleteAction}
+              style={{
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: 8,
+                background: "#dc2626",
+                color: "#fff",
+                fontFamily: "var(--font-dm-sans), sans-serif",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Устгах
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
